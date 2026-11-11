@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: larkfield-support-agent
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: LLM_INPUT_USD_PER_MTOK
+        value: "0.15"
+      - key: LLM_OUTPUT_USD_PER_MTOK
+        value: "0.60"
+      - key: RUN_DB_PATH
+        value: /tmp/larkfield-runs.db

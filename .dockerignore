@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+var
+build
+eval/results
+.env
+*.db
+*.db-wal
+*.db-shm
