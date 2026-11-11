@@ -101,14 +101,15 @@ exact reason-code set must all match.
 Change: a damaged/faulty item with an image is accepted at 31–45 days and tagged
 `DAMAGE_EXCEPTION`, per RP-3.2 §2.6. Committed results:
 
-- `eval/results/20261111T135011Z_before.json`
-- `eval/results/20261111T135016Z_after.json`
+- `eval/results/20261111T141802Z_before.json`
+- `eval/results/20261111T141806Z_after.json`
 
 Contract checks pass in both runs: health body exact; a waiting run is fetchable; approving twice
 leaves **one** `APPROVED` ledger row; a conflicting decision returns **409**; posting the same
 ticket twice returns the same `run_id` and one ledger row.
 
-`python -m pytest -q` → **13 passed** (normalisation, policy, API contract, idempotency, LLM trace).
+`python -m pytest -q` → **15 passed** (normalisation, policy, API contract, idempotency, LLM trace,
+Swagger/OpenAPI and JSON logging). `python -m scripts.dry_run` → **20/20 checks passed**.
 
 ---
 
@@ -119,7 +120,7 @@ the same fields used when a key is present; only the call count and token counts
 
 | Representative ticket | Path | Latency | Cost | Tokens |
 |---|---|---|---|---|
-| `T002` — simple in-window refund | pattern only | **1 ms** | **$0.000000** | 0 |
+| `T002` — simple in-window refund | pattern only | **0 ms** | **$0.000000** | 0 |
 | `T001` — 45-day damage-with-photo, $210 → PEND | pattern + policy | **5 ms** | **$0.000000** | 0 |
 | `T019` — whole-order ask, one eligible line | pattern + policy | **1 ms** | **$0.000000** | 0 |
 | **All 40 cases** | pattern/rule fallback | **median 0.0 ms (sub-ms), p95 1.0 ms** | **median $0.000000**, total $0.000000 | 0 |

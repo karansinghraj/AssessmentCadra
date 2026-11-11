@@ -34,7 +34,9 @@ Service reads `PORT`, uses an OpenAI-compatible provider configured by env.
 - Deterministic policy engine: **done**.
 - SQLite runs/decisions/ledger with idempotency: **done**.
 - FastAPI endpoints + middleware: **done**.
-- Unit/contract tests: **13 passed** (`python -m pytest -q`).
+- Swagger/OpenAPI (`/docs`, `/redoc`, `/openapi.json`) and JSON logger: **done**.
+- End-to-end dry run: **20/20 checks passed** (`python -m scripts.dry_run`).
+- Unit/contract tests: **15 passed** (`python -m pytest -q`).
 - Offline eval: **40/40 pass (100%)** after; **37/40 (92.5%)** in baseline without the
   45-day photo exception. See `eval/results/`.
 - Deployment: **not done yet** (need a public host + own model key).
@@ -57,12 +59,16 @@ Service reads `PORT`, uses an OpenAI-compatible provider configured by env.
 | `src/replies.py` | deterministic customer reply templates |
 | `src/store.py` | SQLite runs, decisions, ledger, idempotency |
 | `src/pipeline.py` | pattern → optional LLM → policy → sanity → judge → trace |
-| `src/app.py` | FastAPI routes and app wiring |
+| `src/app.py` | FastAPI routes, OpenAPI metadata, response models, route logs |
+| `src/api_models.py` | Swagger-only response models (contract + added fields) |
+| `src/logging_config.py` | JSON formatter and API/uvicorn logger setup |
 | `src/middleware.py` | request id, timing, JSON access logs |
+| `scripts/dry_run.py` | end-to-end 20-check flow validation, no model key |
 | `eval/run_eval.py` | 40-case runner, pass rule, timestamped results |
 | `eval/cases.json` | expected labels, public expected, 15 custom cases |
 | `tests/` | normaliser/policy, API contract/idempotency, LLM trace |
 | `ARCHITECTURE.md` | full design |
+| `CODE.md` | code structure and functional logic |
 | `PLAN.md` | time-boxed build plan |
 | `MEMORY.md` | this file |
 
@@ -131,27 +137,28 @@ Added ledger fields: `approver`, `decided_at`.
 # data (must be reproducible; sources are never edited)
 python -m src.prepare_data --report
 
-# tests
+# tests + dry run
 python -m pytest -q
+python -m scripts.dry_run
 
 # evaluation (offline, no model key)
 python -m eval.run_eval --offline --label after
 python -m eval.run_eval --offline --baseline --label before
 
 # run locally
-uvicorn src.app:app --host 0.0.0.0 --port 8000
+uvicorn src.app:app --host 0.0.0.0 --port 8000 --no-access-log
 ```
 
 Model env for deployment: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`,
-`LLM_INPUT_USD_PER_MTOK`, `LLM_OUTPUT_USD_PER_MTOK`. Never commit the key.
+`LLM_INPUT_USD_PER_MTOK`, `LLM_OUTPUT_USD_PER_MTOK`, `LOG_LEVEL`. Never commit the key.
 
 ---
 
 ## 8. Eval numbers
 
 - Result files currently in `eval/results/`:
-  - `20261111T135011Z_before.json` — 37/40 (92.5%), failures T001, P01, N12.
-  - `20261111T135016Z_after.json` — 40/40 (100%).
+  - `20261111T141802Z_before.json` — 37/40 (92.5%), failures T001, P01, N12.
+  - `20261111T141806Z_after.json` — 40/40 (100%).
 - Change: enabled the 31–45 day damage/photo exception (`DAMAGE_EXCEPTION`).
 - Offline median latency <1 ms (no model), median cost $0.000000; deployed model path is traced
   per request with provider token usage.

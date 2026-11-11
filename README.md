@@ -4,6 +4,7 @@ An HTTP service that reads one customer-support email and returns the desk's dec
 **proposes only**: it never refunds, sends email, or changes customer data.
 
 - Design: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- Code structure and logic: [`CODE.md`](CODE.md)
 - Build plan: [`PLAN.md`](PLAN.md)
 - Current state / handoff: [`MEMORY.md`](MEMORY.md)
 - Approach: [`APPROACH.md`](APPROACH.md)
@@ -55,6 +56,16 @@ The deployed service uses its own key. The coding agent's build-time token is ne
 | POST | `/runs/{run_id}/decision` | `{"decision":"approve"\|"reject","approver":"string"}` | updated run |
 | GET | `/ledger` | — | recorded action rows |
 
+Interactive docs: **`/docs`** (Swagger UI), **`/redoc`** (ReDoc) and **`/openapi.json`**. Every
+route has a response model, summary, description and documented error responses.
+
+### Logging
+
+Every API request and lifecycle event is one JSON line: `request_id`, method, path, status,
+latency, ticket/run ids, outcome, state, amount, classification path, tokens and cost. Email bodies
+and addresses are never logged. `LOG_LEVEL` controls verbosity (default `INFO`); uvicorn's duplicate
+access line is suppressed because the middleware owns access logging.
+
 ### Example
 
 ```bash
@@ -82,7 +93,7 @@ Run-level:
 | `action` | `{action, amount_usd, line_no, item, status}` — the proposed/recorded action |
 | `state` | `AWAITING_APPROVAL`, `APPROVED`, `REJECTED`, `ESCALATED`, `CLOSED` |
 | `decisions` | `[{decision, approver, decided_at}]` — audit history |
-| `decision` | present after a decision; same object as the first `decisions` entry |
+| `decision` | `null` until decided, then the same object as the first `decisions` entry |
 
 Trace-level:
 
@@ -177,7 +188,8 @@ State is stored in SQLite (`RUN_DB_PATH`, default `var/runs.db`) with:
 ## Tests and evaluation
 
 ```bash
-python -m pytest -q
+python -m pytest -q                 # 15 passed
+python -m scripts.dry_run           # 20/20 end-to-end checks
 
 # 40 cases: 15 labelled + 10 public + 15 new negatives/boundaries
 python -m eval.run_eval --offline --label after
@@ -192,8 +204,8 @@ reason-code set must all match.
 
 Committed results:
 
-- `eval/results/20261111T135011Z_before.json` — 37/40 (92.5%); missing 45-day photo exception
-- `eval/results/20261111T135016Z_after.json` — 40/40 (100%)
+- `eval/results/20261111T141802Z_before.json` — 37/40 (92.5%); missing 45-day photo exception
+- `eval/results/20261111T141806Z_after.json` — 40/40 (100%)
 
 Current offline run: median latency <1 ms, median cost $0.000000 (no model). With a key, the judge
 and classifier token usage are read from the provider and converted with the configured prices.
@@ -215,7 +227,7 @@ but the free instance may restart. Use a persistent disk or Postgres for product
 ### Local
 
 ```bash
-uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}
+uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000} --no-access-log
 ```
 
 ---
@@ -224,8 +236,10 @@ uvicorn src.app:app --host 0.0.0.0 --port ${PORT:-8000}
 
 ```
 src/
-  app.py            FastAPI routes
-  middleware.py     request id / timing / JSON logs
+  app.py            FastAPI routes, OpenAPI metadata, route logs
+  api_models.py     Swagger response models (contract + added fields)
+  middleware.py     request id / timing / JSON access logs
+  logging_config.py JSON formatter and logger setup
   pipeline.py       routing + policy + sanity + judge orchestration
   guardrails.py     pattern router + injection + sanity gate
   extract.py        optional LLM classifier and judge
@@ -234,10 +248,12 @@ src/
   prepare_data.py   one-command data build
   normalize.py      normalisation helpers
   store.py          SQLite runs / decisions / ledger
+scripts/
+  dry_run.py        end-to-end flow validation (no model key)
 eval/
   cases.json        40 cases and pass rule
   run_eval.py       runner with timestamped results
-tests/              normaliser, policy, API, idempotency, LLM trace
+tests/              normaliser, policy, API, Swagger, logging, LLM trace
 data/               source exports (never edited)
 policies/           source policy documents (never edited)
 inbox/ tickets/     source tickets (never edited)

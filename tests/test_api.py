@@ -82,3 +82,52 @@ def test_whole_order_is_modified(client):
     assert body["outcome"] == "PROCEED_MODIFIED"
     assert body["action"]["amount_usd"] == 27.5
     assert "PARTIAL_LINES" in body["reason_codes"]
+
+
+def test_openapi_and_swagger_document_all_routes(client):
+    schema = client.get("/openapi.json")
+    assert schema.status_code == 200
+    document = schema.json()
+    assert set(document["paths"]) == {
+        "/health",
+        "/tickets",
+        "/runs/{run_id}",
+        "/runs/{run_id}/decision",
+        "/ledger",
+    }
+    ticket_schema = document["paths"]["/tickets"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert ticket_schema["$ref"] == "#/components/schemas/RunResponse"
+    assert "RunResponse" in document["components"]["schemas"]
+    assert "TraceModel" in document["components"]["schemas"]
+    docs = client.get("/docs")
+    assert docs.status_code == 200
+    assert "swagger-ui" in docs.text.lower()
+    assert client.get("/redoc").status_code == 200
+
+
+def test_api_logger_and_request_headers(client):
+    import logging
+
+    records = []
+
+    class Capture(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    handler = Capture()
+    logger = logging.getLogger("larkfield.api")
+    logger.addHandler(handler)
+    try:
+        response = client.get("/health", headers={"x-request-id": "req_test_123"})
+    finally:
+        logger.removeHandler(handler)
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] == "req_test_123"
+    assert int(response.headers["x-response-time-ms"]) >= 0
+    assert any(
+        getattr(record, "event", None) == "request"
+        and getattr(record, "request_id", None) == "req_test_123"
+        and getattr(record, "status", None) == 200
+        for record in records
+    )

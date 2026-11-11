@@ -72,6 +72,7 @@ def _p95(values: list[float]) -> float:
 def run(label: str, baseline: bool, offline: bool) -> dict:
     if offline:
         os.environ["LLM_API_KEY"] = ""
+    os.environ.setdefault("LOG_LEVEL", "ERROR")
     os.environ.setdefault("RUN_DB_PATH", str(Path(tempfile.mkdtemp(prefix="larkfield_eval_")) / "runs.db"))
     if baseline:
         os.environ["DISABLE_DAMAGE_EXCEPTION"] = "1"
