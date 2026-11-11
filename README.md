@@ -5,6 +5,7 @@ An HTTP service that reads one customer-support email and returns the desk's dec
 
 - Design: [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - Code structure and logic: [`CODE.md`](CODE.md)
+- Vercel serverless: [`VERCEL.md`](VERCEL.md)
 - Build plan: [`PLAN.md`](PLAN.md)
 - Current state / handoff: [`MEMORY.md`](MEMORY.md)
 - Approach: [`APPROACH.md`](APPROACH.md)
@@ -214,6 +215,29 @@ and classifier token usage are read from the provider and converted with the con
 
 ## Deployment
 
+### Vercel (serverless)
+
+`main.py` is the Vercel entrypoint and `vercel.json` configures the function. When `VERCEL=1`,
+SQLite and the prepared-data cache default to `/tmp`; nothing is written to the read-only repo.
+
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+Set `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, prices and `LOG_LEVEL` in Vercel. Leave
+`RUN_DB_PATH` and `DATA_BUILD_DIR` unset. Full steps and caveats: [`VERCEL.md`](VERCEL.md).
+
+> `/tmp` is per instance and ephemeral: runs, decisions and the ledger do not survive a cold start
+> and are not shared between concurrent instances. Use Postgres for durable production state.
+
+Validate the serverless path locally:
+
+```bash
+python -m scripts.vercel_smoke
+```
+
 ### Render (Docker)
 
 1. Push this repo to a public GitHub repository.
@@ -250,14 +274,17 @@ src/
   store.py          SQLite runs / decisions / ledger
 scripts/
   dry_run.py        end-to-end flow validation (no model key)
+  vercel_smoke.py   serverless /tmp path + entrypoint validation
 eval/
   cases.json        40 cases and pass rule
   run_eval.py       runner with timestamped results
-tests/              normaliser, policy, API, Swagger, logging, LLM trace
+tests/              normaliser, policy, API, Swagger, logging, config, LLM trace
 data/               source exports (never edited)
 policies/           source policy documents (never edited)
 inbox/ tickets/     source tickets (never edited)
 schema/             contract models (never edited)
+main.py             Vercel serverless entrypoint
+vercel.json         Vercel function config
 ```
 
 ---
@@ -270,5 +297,7 @@ schema/             contract models (never edited)
 - Approver identity is a free-text name; the contract provides no authentication.
 - Multi-order or conflicting-intent emails return `UNABLE_TO_VERIFY` for human review rather than
   being split automatically.
-- SQLite is single-instance; free-host ephemeral storage may lose runs on restart.
+- SQLite is single-instance; free-host ephemeral storage may lose runs on restart. On Vercel,
+  `/tmp` is per instance and ephemeral, so runs/decisions/ledger do not survive cold starts or
+  scale across instances. Use Postgres for durable production state.
 - Email-match is the identity check; spoofing/account takeover is out of scope.

@@ -3,7 +3,8 @@
 Read this first. It is the current state of the build; you should not need to re-read every
 source file to continue.
 
-Last updated: 2026-11-11 (implementation, eval and docs complete; deployment pending).
+Last updated: 2026-11-11 (implementation, eval, docs and Vercel serverless config complete;
+public deployment pending).
 
 ---
 
@@ -36,10 +37,13 @@ Service reads `PORT`, uses an OpenAI-compatible provider configured by env.
 - FastAPI endpoints + middleware: **done**.
 - Swagger/OpenAPI (`/docs`, `/redoc`, `/openapi.json`) and JSON logger: **done**.
 - End-to-end dry run: **20/20 checks passed** (`python -m scripts.dry_run`).
-- Unit/contract tests: **15 passed** (`python -m pytest -q`).
+- Serverless/Vercel support: **done and validated locally** (`main.py`, `vercel.json`,
+  `.python-version`, `.vercelignore`; `/tmp` paths for SQLite and prepared data).
+  `python -m scripts.vercel_smoke` → **10/10 checks passed**.
+- Unit/contract tests: **17 passed** (`python -m pytest -q`).
 - Offline eval: **40/40 pass (100%)** after; **37/40 (92.5%)** in baseline without the
   45-day photo exception. See `eval/results/`.
-- Deployment: **not done yet** (need a public host + own model key).
+- Deployment: **config ready, not published** (need a public host/repo + own model key).
 - Git: committed locally (not pushed); `opencode.json` is untracked and ignored because it holds a
   coding-agent token — never commit it.
 - `APPROACH.md` (250 words) and `ARTEFACT.md`: **done**; deployment evidence still pending.
@@ -64,11 +68,15 @@ Service reads `PORT`, uses an OpenAI-compatible provider configured by env.
 | `src/logging_config.py` | JSON formatter and API/uvicorn logger setup |
 | `src/middleware.py` | request id, timing, JSON access logs |
 | `scripts/dry_run.py` | end-to-end 20-check flow validation, no model key |
+| `scripts/vercel_smoke.py` | serverless `/tmp` paths + entrypoint, 10 checks |
+| `main.py` | Vercel serverless entrypoint exporting `app` |
+| `vercel.json` | Vercel function config (`maxDuration: 60`) |
 | `eval/run_eval.py` | 40-case runner, pass rule, timestamped results |
 | `eval/cases.json` | expected labels, public expected, 15 custom cases |
 | `tests/` | normaliser/policy, API contract/idempotency, LLM trace |
 | `ARCHITECTURE.md` | full design |
 | `CODE.md` | code structure and functional logic |
+| `VERCEL.md` | Vercel serverless deployment and `/tmp` caveats |
 | `PLAN.md` | time-boxed build plan |
 | `MEMORY.md` | this file |
 
@@ -140,6 +148,9 @@ python -m src.prepare_data --report
 # tests + dry run
 python -m pytest -q
 python -m scripts.dry_run
+
+# serverless (/tmp) path and entrypoint
+python -m scripts.vercel_smoke
 
 # evaluation (offline, no model key)
 python -m eval.run_eval --offline --label after

@@ -26,4 +26,4 @@ idempotency.
 **Judgement calls.** The 10-day test is strict `>`; ambiguous facts return `UNABLE_TO_VERIFY`;
 approved proposals count as prior credits.
 
-**Not finished.** Deployment and real-provider cost/latency need the service's own key.
+**Not finished.** Vercel config ready; publish and measure real-provider cost.

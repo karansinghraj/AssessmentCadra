@@ -108,8 +108,10 @@ Contract checks pass in both runs: health body exact; a waiting run is fetchable
 leaves **one** `APPROVED` ledger row; a conflicting decision returns **409**; posting the same
 ticket twice returns the same `run_id` and one ledger row.
 
-`python -m pytest -q` → **15 passed** (normalisation, policy, API contract, idempotency, LLM trace,
-Swagger/OpenAPI and JSON logging). `python -m scripts.dry_run` → **20/20 checks passed**.
+`python -m pytest -q` → **17 passed** (normalisation, policy, API contract, idempotency, LLM trace,
+Swagger/OpenAPI, JSON logging, serverless config). `python -m scripts.dry_run` → **20/20 checks
+passed**. `python -m scripts.vercel_smoke` → **10/10 checks passed** (database and prepared data under
+the OS temp directory, Vercel-style entrypoint).
 
 ---
 
@@ -137,9 +139,10 @@ request is roughly **$0.0003**.
 
 ## 6. What is not built
 
-- **No public deployment yet.** The Dockerfile and `render.yaml` are ready; publishing needs the
-  user's GitHub repo and model-provider key. There is therefore no live URL and no real-provider
-  cost/latency measurement in this artefact.
+- **No public deployment yet.** Vercel serverless config (`main.py`, `vercel.json`,
+  `.python-version`, `.vercelignore`) and the Docker/Render files are ready and locally validated;
+  publishing needs the user's repo connection and model-provider key. There is therefore no live URL
+  and no real-provider cost/latency measurement in this artefact.
 - No actual refund execution, email sending or carrier API integration (by contract).
 - Attachments are a boolean signal only; image content is not analysed (RP-3.2 §2.6 treats a
   supplied image as sufficient for this desk).

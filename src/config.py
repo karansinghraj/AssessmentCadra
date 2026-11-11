@@ -6,10 +6,20 @@ model provider key. Nothing secret is committed.
 from __future__ import annotations
 
 import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _serverless() -> bool:
+    """True inside Vercel/Lambda or when SERVERLESS=1 is set explicitly."""
+    return bool(
+        os.getenv("VERCEL")
+        or os.getenv("AWS_LAMBDA_FUNCTION_NAME")
+        or os.getenv("SERVERLESS")
+    )
 
 
 def _env(name: str, default: str = "") -> str:
@@ -58,14 +68,27 @@ class Config:
     llm_judge_enabled: bool
     llm_classifier_enabled: bool
     max_body_chars: int
+    serverless: bool
 
     @classmethod
     def from_env(cls) -> "Config":
+        serverless = _serverless()
+        temp = Path(tempfile.gettempdir())
         return cls(
             port=_int("PORT", 8000),
             data_dir=Path(_env("DATA_DIR", str(ROOT / "data"))),
-            build_dir=Path(_env("DATA_BUILD_DIR", str(ROOT / "build"))),
-            run_db_path=Path(_env("RUN_DB_PATH", str(ROOT / "var" / "runs.db"))),
+            build_dir=Path(
+                _env(
+                    "DATA_BUILD_DIR",
+                    str(temp / "larkfield-build" if serverless else ROOT / "build"),
+                )
+            ),
+            run_db_path=Path(
+                _env(
+                    "RUN_DB_PATH",
+                    str(temp / "larkfield-runs.db" if serverless else ROOT / "var" / "runs.db"),
+                )
+            ),
             llm_api_key=_env("LLM_API_KEY"),
             llm_base_url=_env("LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
             llm_model=_env("LLM_MODEL", "gpt-4o-mini"),
@@ -75,6 +98,7 @@ class Config:
             llm_judge_enabled=_bool("LLM_JUDGE_ENABLED", True),
             llm_classifier_enabled=_bool("LLM_CLASSIFIER_ENABLED", True),
             max_body_chars=_int("MAX_BODY_CHARS", 20000),
+            serverless=serverless,
         )
 
     @property
